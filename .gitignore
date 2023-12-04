@@ -1,0 +1,22 @@
+# Python Cache etc stuff
+.idea*
+venv/*
+*cache*
+.ipynb*
+*logs*
+tmp/*
+
+
+
+
+#data
+data/*/*
+
+#keep data structure
+!*/**/.keep
+
+scratch.py
+train
+trained_models
+tests
+data
