@@ -10,13 +10,9 @@ tmp/*
 
 
 #data
-data/*/*
-
-#keep data structure
-!*/**/.keep
+/data
 
 scratch.py
 train
 trained_models
 tests
-data
