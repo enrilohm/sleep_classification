@@ -46,7 +46,7 @@ class SleepClassifier:
         A DataFrame with awake predictions and datetime index
         """
         hr_df = hr_df.copy()
-        acc_df = acc_df
+        acc_df = acc_df.copy()
         hr_arr, acc_arr, time_grid = preprocess_data(hr_df, acc_df)
 
         hr_fe = get_heart_feature(hr_arr)
