@@ -19,8 +19,8 @@ pip install git+https://github.com/enrilohm/sleep_classification.git
 from sleep_classification import SleepClassifier
 import pandas as pd
 import random
-heart_rate_df = pd.DataFrame([(i*10**9*50, 60 + random.randint(0,2)) for i in range(100000//50)]).set_index(0)
-acceleration_df = pd.DataFrame([(i*10**9/50, 0,0, -9.81) for i in range(5000000)]).set_index(0)
+heart_rate_df = pd.DataFrame([(i*10**9, 60 + random.randint(0,2)) for i in range(3600)]).set_index(0)
+acceleration_df = pd.DataFrame([(i*10**9/50, 0,0, -9.81) for i in range(3600*50)]).set_index(0)
 
 
 sleep_classifier = SleepClassifier()
