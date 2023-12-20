@@ -58,13 +58,6 @@ def read_data(patient_id):
 
     label_df["valid_data"] = get_valid_epochs(hr_df, acc_df, label_df)
 
-    compare_df = pd.read_csv(
-        f"/home/el/repos/sleep_classifiers/outputs/features/{patient_id}_psg_labels.out",
-        header=None,
-        sep=" ",
-    )
-    assert compare_df[0].to_list() == label_df[label_df.valid_data][1].to_list()
-
     adjust_adjust_units(hr_df, acc_df, label_df)
     return hr_df, acc_df, label_df
 
