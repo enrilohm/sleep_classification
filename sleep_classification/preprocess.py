@@ -63,12 +63,12 @@ def align_sequences(hr_df, acc_df, label_df):
         axis=1,
     )
 
-
     if label_df is not None:
         labels = label_df.loc[time_grid].to_numpy()
     else:
-        labels = None
+        labels = pd.DataFrame(time_grid)
     return hr_interpolation, acc_interpolation, labels
+
 
 def preprocess_data(hr_df, acc_df, label_df=None):
     hr_df = process_input_hr(hr_df)
@@ -78,7 +78,4 @@ def preprocess_data(hr_df, acc_df, label_df=None):
         hr_df, acc_df, label_df
     )
 
-    if label_df is None:
-        return hr_interpolation, acc_interpolation
-    else:
-        return hr_interpolation, acc_interpolation, labels
+    return hr_interpolation, acc_interpolation, labels

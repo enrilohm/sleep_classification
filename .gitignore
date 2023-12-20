@@ -1,18 +1,10 @@
-# Python Cache etc stuff
-.idea*
-venv/*
-*cache*
-.ipynb*
-*logs*
-tmp/*
+models/**/*
+data/**/*
 
+!**/.keep
 
-
-
-#data
-/data
 
 scratch.py
-train
 trained_models
 tests
+evaluate

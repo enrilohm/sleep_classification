@@ -1,5 +1,5 @@
 # taken from https://github.com/ojwalch/sleep_classifiers/
-
+import pandas as pd
 import numpy as np
 from scipy.signal import butter, filtfilt
 
@@ -45,7 +45,7 @@ def get_heart_feature(hr_arr):
 
 def get_activity_counts(data):
     fs = 50
-    z_data = data[:, 2] / 10
+    z_data = data[:, 2] / 9.81
 
     cf_low = 3
     cf_hi = 11

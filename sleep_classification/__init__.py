@@ -1,1 +1,1 @@
-from sleep_classification.sleep_classification import SleepClassifier
+from sleep_classification.sleep_classifier import SleepClassifier
