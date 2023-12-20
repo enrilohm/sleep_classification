@@ -17,8 +17,16 @@ pip install git+https://github.com/enrilohm/sleep_classification.git
 ```python
 #Python
 from sleep_classification import SleepClassifier
-SleepClassifier.predict(heart_rate_df, accerlation_df)
+import pandas as pd
+import random
+heart_rate_df = pd.DataFrame([(i*10**9*50, 60 + random.randint(0,2)) for i in range(100000//50)]).set_index(0)
+acceleration_df = pd.DataFrame([(i*10**9/50, 0,0, -9.81) for i in range(5000000)]).set_index(0)
+
+
+sleep_classifier = SleepClassifier()
+prediction = sleep_classifier.predict(heart_rate_df, acceleration_df)
 ```
+The predict method expects a single column heart rate DataFrame and a 3 column acceleration DataFrame in SI units. For both DataFrames, the index should be datetime information compatible with pandas.to_datetime(). In this example, the datetime index is in nanoseconds.
 
 ### Training and Evaluation
 
