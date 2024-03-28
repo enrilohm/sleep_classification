@@ -30,7 +30,7 @@ setup(
     packages=["sleep_classification"],
     package_data={
         package_name: [
-            "data/*"
+            "data/**/*"
         ]
     },
 )
