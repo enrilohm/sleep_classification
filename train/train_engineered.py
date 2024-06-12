@@ -1,80 +1,29 @@
 from sklearn import metrics
 import numpy as np
-from sleep_classification.preprocess import preprocess_data
-from sleep_classification.feature_engineering import (
-    get_heart_feature,
-    get_activity_counts,
-)
 from tqdm import tqdm
 import random
-import tensorflow as tf
 from tensorflow.keras import layers as L
-from train.data_load import read_data, get_patient_ids
+from train.load_physio import get_patient_ids, load_physio, PhysioDataLoader
+from train.utils import hybrid_pooling
+import tensorflow as tf
+from train.load_dalia import load_dalia
+from train.load_stress import load_stress
+from train.load_mondy import load_mondy
+from train.load_mesa import load_mesa
 
+dalia_dict = load_dalia()
+stress_dict = load_stress()
+mondy_dict = load_mondy()
+mesa_dict = load_mesa()
+physio_dict = load_physio()
 
-def read_all_data():
-    print("preprocessing data:")
-    patient_ids = get_patient_ids()
-    data_dict = {}
-    for patient_id in tqdm(patient_ids):
-        print(f"processing {patient_id}")
-        data_dict[patient_id] = {}
-
-        hr_df, acc_df, label_df = read_data(patient_id)
-        label_df.loc[~label_df.valid_data, 1] = -1.0
-        label_df.drop(columns="valid_data", inplace=True)
-        hr_arr, acc_arr, label_arr = preprocess_data(hr_df, acc_df, label_df)
-        for key, value in zip(["hr", "acc", "label"], [hr_arr, acc_arr, label_arr]):
-            data_dict[patient_id][key] = value
-    return data_dict
-
-
-def random_crop(data, features, crop_size):
-    label_arr = data["label"].copy()
-    cropped = {}
-    y_boundary = label_arr.shape[0] - crop_size
-    y_start = np.random.randint(0, y_boundary)
-    for feature in features:
-        feature_array = data[feature]
-        assert len(feature_array) % len(label_arr) == 0, feature
-        r = len(feature_array) // len(label_arr)
-        cropped_feature = feature_array[y_start * r : (y_start + crop_size) * r, :]
-        cropped[feature] = cropped_feature
-    cropped["label"] = label_arr[y_start : y_start + crop_size, :]
-    return cropped
-
-
-def random_flip(data, prob=0.5):
-    if random.random() <= prob:
-        data = {k: np.flip(v, 0) for k, v in data.items()}
-
-
-def get_batch(data_dict, features, batch_size, train):
-    batch = []
-    for sample in range(batch_size):
-        patient_id = random.choice(list(data_dict.keys()))
-        data = {
-            k: v for k, v in data_dict[patient_id].items() if k in features + ["label"]
-        }
-        if train:
-            data = random_crop(data, features, 100)
-            random_flip(data)
-        batch.append(data)
-    labels = [d.pop("label") for d in batch]
-    labels = np.stack(labels, axis=0)
-    weights = (labels != -1).astype(int)
-    labels += labels == -1
-
-    inputs = [np.stack(x, axis=0) for x in zip(*[d.values() for d in batch])]
-    inputs = dict(zip(features, inputs))
-    return inputs, labels, weights
-
-
-def hybrid_pooling(x, kernel, strides):
-    max = L.MaxPooling1D(kernel, strides=strides)(x)
-    avg = L.AveragePooling1D(kernel, strides=strides)(x)
-    result = L.Concatenate(axis=2)([max, avg])
-    return result
+sample = list(stress_dict.values())[0]
+np.sqrt((sample["acc_df"] ** 2).sum(axis=1))
+len(dalia_dict)
+len(stress_dict)
+len(mondy_dict)
+len(physio_dict)
+len(mesa_dict)
 
 
 def create_model():
@@ -85,6 +34,7 @@ def create_model():
     hr = hr_in
 
     x = L.Concatenate(axis=2)([hr_in, acc_in])
+    # x=hr_in
     x = L.Conv1D(8, 5, activation="relu", padding="same")(x)
     x = L.Conv1D(16, 5, activation="relu", padding="same")(x)
     x = L.Conv1D(32, 5, activation="relu", padding="same")(x)
@@ -97,28 +47,12 @@ def create_model():
     output = x
 
     model = tf.keras.models.Model(inputs=(hr_in, acc_in), outputs=output)
+    # model = tf.keras.models.Model(inputs=(hr_in), outputs=output)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.0005),
         loss=tf.keras.losses.SparseCategoricalCrossentropy(),
     )
     return model
-
-
-class StandardDataLoader(tf.keras.utils.Sequence):
-    def __init__(self, data_dict, features, batch_size, steps, train):
-        self.steps = steps
-        self.data_dict = data_dict
-        self.batch_size = batch_size
-        self.train = train
-        self.features = features
-
-    def __len__(self):
-        return self.steps
-
-    def __getitem__(self, index):
-        f, l, w = get_batch(self.data_dict, self.features, self.batch_size, self.train)
-        f["activity_feature"] = np.log(1 + f["activity_feature"])
-        return list(f.values()), l, w
 
 
 def save_data(data_dict):
@@ -133,53 +67,52 @@ def load_data():
     return data_dict
 
 
-def add_features(data_dict):
-    for patient_id, data in tqdm(data_dict.items()):
-        data["heart_feature"] = get_heart_feature(data["hr"])
-    for patient_id, data in tqdm(data_dict.items()):
-        data["activity_feature"] = get_activity_counts(data["acc"])
-
-
 if __name__ == "__main__":
+    result_dict = {}
     create_model().summary()
 
-    data_dict = read_all_data()
+    data_dict = load_physio()
     feature_dict = data_dict.copy()
-    add_features(feature_dict)
+    list(feature_dict.values())[0]
     # import shelve
 
     # save_data(feature_dict)
     # feature_dict = load_data()
 
+    features = ["heart_feature", "activity_feature"]
+    # features = ["heart_feature"]
     aucs = []
     for test_patient in feature_dict:
         print(f"\n\ntraining model for patient {test_patient}")
         train_dict = feature_dict.copy()
         test_dict = {test_patient: train_dict.pop(test_patient)}
-        dl_train = StandardDataLoader(
+        assert test_patient not in train_dict
+        dl_train = PhysioDataLoader(
             train_dict,
-            ["heart_feature", "activity_feature"],
+            features,
             batch_size=100,
-            steps=100,
+            n_batches=100,
+            sequence_len=100,
             train=True,
         )
-        dl_test = StandardDataLoader(
+        dl_test = PhysioDataLoader(
             test_dict,
-            ["heart_feature", "activity_feature"],
+            features,
             batch_size=1,
-            steps=1,
+            sequence_len=1,
+            n_batches=1,
             train=False,
         )
         for i in range(1):
             model = create_model()
             predictions = []
-            for i in range(20):
+            for i in range(10):
                 model.fit(dl_train, epochs=1, verbose=0)
-                model.evaluate(dl_test, verbose=0)
+                model.evaluate(dl_test, verbose=1)
 
                 prediction = 1 - model.predict(dl_test, verbose=0)[0, :, 0]
 
-                (_, _), labels, weights = next(iter(dl_test))
+                _, labels, weights = next(iter(dl_test))
                 labels = (labels[0, :, 0] > 0).astype(int)
                 weights = weights[0, :, 0]
 
@@ -193,4 +126,35 @@ if __name__ == "__main__":
         print("new auc " + str(auc))
         aucs.append(auc)
         print("new mean auc: " + str(np.mean(aucs)))
+        result_dict[test_patient] = {"labels": labels, "predictions": prediction}
         model.save(f"models/{test_patient}.h5")
+        break
+
+import plotly.express as pe
+
+pe.line(labels)
+pe.line(prediction)
+pe.line(test_dict[test_patient]["heart_feature"])
+pe.line(test_dict[test_patient]["hr_df"])
+pe.line(md["hr_df"])
+pe.line(md["acc_df"][:10000])
+
+pe.line(md["heart_feature"][:1000])
+pe.line(test_dict[test_patient]["activity_feature"])
+pe.line(md["activity_feature"][:1000])
+pe.line(mp[:, 0, 0][:1000])
+list(mondy_dict.keys())[4]
+md = mondy_dict["18ad66be3a0-165a2619-01ef-455a-ac6d-dd109bdaec39"]  # looks good!
+md = mondy_dict["18b6629a6da-830ea28f-f989-4c06-b5c7-26f699da3c93"]
+md = mondy_dict["18b669e6c81-b1a6fcac-cc50-4e65-83b2-428c832d45ed"]
+md = mondy_dict['18b8fdd2eb3-bfb83b6e-27e1-464c-a560-bdd25ea5131c']
+pe.line(md["heart_feature"])
+pe.line(md["activity_feature"])
+mp.shape
+mp = model.predict(
+    (np.expand_dims(md["heart_feature"], 0), np.expand_dims(md["activity_feature"], 0))
+)
+np.mean(mp[0, :, 0] > 0.9)
+pe.line(md["hr_df"])
+pe.line(md["activity_feature"])
+pe.line(mp[0, :, 0])
