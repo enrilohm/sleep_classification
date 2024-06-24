@@ -51,9 +51,9 @@ class SleepClassifier:
 
         hr_fe = get_heart_feature(hr_arr)
         acc_fe = get_activity_counts(acc_arr)
-
+        acc_fe = np.log(1 + acc_fe)
         predictions = [
-            model((np.expand_dims(hr_fe, 0), np.expand_dims(hr_fe, 0)))
+            model((np.expand_dims(hr_fe, 0), np.expand_dims(acc_fe, 0)))
             for model in self.models
         ]
         prediction = sum(predictions) / len(predictions)
